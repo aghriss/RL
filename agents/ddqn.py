@@ -9,15 +9,14 @@ import sys
 import collections
 sys.path.append("../")
 
-from base.agent import Agent
+from base.baseagent import BaseAgent
 from base.replaymemory import ReplayMemory
-from utils.console import Progbar
+from core.console import Progbar
+import core.utils as U
 import numpy as np
 import torch
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-class DDQN(Agent):
+class DDQN(BaseAgent):
     """
     Double Deep Q Networks
     """
@@ -28,10 +27,10 @@ class DDQN(Agent):
         super(DDQN,self).__init__()
 
         self.env = env
-        
+        self.name = env.name+self.name
         self.Q = self.model = deep_func(env)
         self.target_Q = deep_func(env)
-        self.Q.summary()
+        
         self.discount = gamma
         self.memory_min = memory_min        
         self.memory_max = memory_max
@@ -46,16 +45,18 @@ class DDQN(Agent):
         self.eps_decay = eps_decay        
         if eps_decay == -1:            
             self.eps_decay = 1/train_steps
+    
         self.eps_min = eps_min
         self.update_double = update_double
         self.actions=[]
         self.path_generator = self.roller()
         self.past_rewards = collections.deque([],50)
+    
     def act(self,state):
         
         if np.random.rand()<self.eps:
             return np.random.randint(self.env.action_space.n)
-        return np.argmax(self.Q.predict(state))
+        return np.argmax(U.get(self.Q(U.torchify(state).unsqueeze(0))).squeeze())
     
     def train(self):
 
@@ -68,20 +69,19 @@ class DDQN(Agent):
 
             to_log = 0
             self.progbar.__init__(self.update_double)
-            old_theta = self.Q.flattener.get()
-            th0 = self.Q.net.dense[0].weight.detach().clone()
+            old_theta = self.Q.flaten.get()
             self.target_Q.copy(self.Q)
             while to_log <self.update_double:
 
                 self.path_generator.__next__()
                 
                 rollout = self.memory.sample(self.batch_size)
-                state_batch = torch.tensor(rollout["state"], dtype = torch.float, device=device)
-                action_batch = torch.tensor(rollout["action"], dtype = torch.long, device=device)
-                reward_batch = torch.tensor(rollout["reward"], dtype = torch.float, device=device)
+                state_batch = U.torchify(rollout["state"])
+                action_batch = U.torchify(rollout["action"]).long()
+                reward_batch = U.torchify(rollout["reward"])
 
-                non_final_batch = torch.tensor(1-rollout["terminated"], dtype = torch.float, device=device)
-                next_state_batch = torch.tensor(rollout["next_state"], dtype = torch.float, device=device)
+                non_final_batch = U.torchify(1-rollout["terminated"])
+                next_state_batch = U.torchify(rollout["next_state"])
 
                 #current_q = self.Q(state_batch)
                 
@@ -90,9 +90,7 @@ class DDQN(Agent):
                 
                 
                 # Compute the target of the current Q values
-                #target_q = self.target_Q(state_batch).gather(1, action_batch.unsqueeze(1)).view(-1)
                 next_max_q = self.target_Q(next_state_batch).gather(1,a_prime.unsqueeze(1)).view(-1)
-                #target_q[torch.arange(self.batch_size).long(),action_batch.squeeze()] =  reward_batch + self.discount * non_final_batch * next_max_q.squeeze()
                 target_q =  reward_batch + self.discount * non_final_batch * next_max_q.squeeze()
                 
                 # Compute loss
@@ -106,10 +104,9 @@ class DDQN(Agent):
                 to_log+=self.batch_size
 
             self.target_Q.copy(self.Q)
-            new_theta = self.Q.flattener.get()
-            th1 = self.Q.net.dense[0].weight.detach()
+            new_theta = self.Q.flaten.get()
+
             self.log("Delta Theta L1", float((new_theta-old_theta).mean().abs().detach().cpu().numpy()))
-            self.log("Delta Dense Theta L1",float((th0-th1).mean().abs().detach().cpu().numpy()))
             self.log("Av 50ep  rew",np.mean(self.past_rewards))
             self.log("Max 50ep rew",np.max(self.past_rewards))
             self.log("Min 50ep rew",np.min(self.past_rewards))
@@ -156,27 +153,23 @@ class DDQN(Agent):
                 if not(self.done)%self.update_double:
                     self.update=True
             
-                
             # record the episodes
             self.memory.record(episode)
             if self.memory.size< self.memory_min: self.progbar.add(self.batch_size,values=[("Loss",0.0)])        
             yield True
 
     def play(self,name='play'):
-        
-        name = name+self.env.name+str(self.eps)        
-
-        eps = self.eps        
+        name = name+self.env.name+str(self.eps)
+        eps = self.eps
         self.set_eps(0)        
-        state = self.env.reset(record=True)
-        
+        state = self.env.reset()
         done = False
-        while not done:
-            
+        while not done:    
             action = self.act(state)    
             state, _, done, info = self.env.step(action)
         
         self.env.save_episode(name)
         self.set_eps(eps)
+
     def load(self):
-        super(DDQN,self).load(self.env.name)
+        super(DDQN,self).load(self.name)

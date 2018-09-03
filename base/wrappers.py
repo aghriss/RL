@@ -54,7 +54,7 @@ class EnvWrapper(object):
             self.axis=(0,1,2)
 
 
-    def reset(self, record = False):
+    def reset(self):
 
         self.current_episode += 1
 
@@ -62,9 +62,8 @@ class EnvWrapper(object):
         for _ in range(self.frame_count):
             self.memory.append(s)
 
-        if not self.record_freq%self.current_episode:
+        if not self.current_episode%self.record_freq:
             self.save_episode(self.name+str(self.current_episode))
-
         self.episode = []
 
         return self.current_state()
@@ -127,6 +126,7 @@ class EnvWrapper(object):
 
 
 
+class AtariWrapper(EnvWrapper):
     def reset(self, record = False):
         if self.recording:
             self.save_episode(self.name+str(self.episodes))

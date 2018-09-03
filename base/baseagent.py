@@ -9,12 +9,12 @@ import numpy as np
 import collections
 import torch
 
-class Agent(object):
+class BaseAgent(object):
     
     def __init__(self):
         
         self.history = collections.OrderedDict()
-                
+        self.functions = []
     def act(self,state,train=False):
         
         raise NotImplementedError
@@ -23,11 +23,13 @@ class Agent(object):
         
         raise NotImplementedError
         
-    def save(self,name):
-        self.model.save(self.name+name)
+    def save(self,fname):
+        for f in self.functions:
+            f.save(fname)
         
-    def load(self,name):
-        self.model.load(self.name+name)
+    def load(self,fname):
+        for f in self.functions:
+            f.load(fname)
 
     def log(self, key,value=None):
         if isinstance(value, torch.Tensor):
