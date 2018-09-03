@@ -113,7 +113,7 @@ class EnvWrapper(object):
                                                                                               '-pix_fmt': 'yuv420p','-r': '25'})
         except:
             print("No video pluging, saving array")
-            np.savetxt(PLAY_PATH+fname+"_uncompiled.mp4",episode)
+            np.save(PLAY_PATH+fname+"_uncompiled.mp4",episode)
     def render(self):
         #skimage.io.imshow(self.last_frame)
         plt.imshow(self.last_frame)
