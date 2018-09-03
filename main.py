@@ -22,7 +22,7 @@ gc.collect()
 
 
 game = "grid"
-env0 = EnvWrapper(GRID(grid_size= 36 ,max_time=5000,stochastic = False),size=36,mode="rgb", frame_count = 1,frame_skip=0)
+env0 = EnvWrapper(GRID(grid_size= 36 ,max_time=5000,stochastic = False), size=36,mode="rgb", frame_count = 1,frame_skip=0)
 #env0.reset();env0.render()
 #env = gym.make("Breakout-v0")
 #env = gym.make("Pong-v0")
