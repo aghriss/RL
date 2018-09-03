@@ -104,14 +104,14 @@ class EnvWrapper(object):
             return state.transpose(self.axis)
         raise "color %s mode not implemented"%self.mode
 
-    def save_episode(self,file):
+    def save_episode(self,fname):
         episode = (np.concatenate([self.episode])*255.0).astype(np.int32)
         try : 
-            skvideo.io.vwrite(PLAY_PATH+file+ '.mp4', episode, inputdict={'-r': '25'},outputdict={'-vcodec': 'libx264',
+            skvideo.io.vwrite(PLAY_PATH+fname+ '.mp4', episode, inputdict={'-r': '25'},outputdict={'-vcodec': 'libx264',
                                                                                               '-pix_fmt': 'yuv420p','-r': '25'})
         except:
             print("No video pluging, saving array")
-            np.savetxt(PLAY_PATH+file+"_uncompiled.mp4")
+            np.savetxt(PLAY_PATH+fname+"_uncompiled.mp4",episode)
     def render(self):
         #skimage.io.imshow(self.last_frame)
         plt.imshow(self.last_frame)
