@@ -24,7 +24,7 @@ game = "grid"
 #env.name = "Breakout-v0"
 #env0 = AtariWrapper(env, size=56, frame_count = 4, crop= "Breakout-v0")
 #env0 = AtariWrapper(env, size=64, frame_count = 3, crop= "Pong-v0")
-env0 = EnvWrapper(GRID(grid_size=16,max_time=1000,stochastic = False, square_size=3),record_freq=10, size=48,mode="rgb", frame_count = 1)
+env0 = EnvWrapper(GRID(grid_size=16,max_time=1000,stochastic = True, square_size=3),record_freq=10, size=48,mode="rgb", frame_count = 1)
 agent = TRPO(env0, TRPOPolicy,VFunction,timesteps_per_batch=512, # what to train on
         gamma=0.99, lam=0.98, # advantage estimation
         max_kl=1e-4,

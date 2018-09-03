@@ -20,7 +20,7 @@ class GRID(object):
         self.max_time = max_time
         
         self.grid_size = grid_size
-        self.stochastic = stochastic
+        self.stochastic = stochastic;self.name = self.name + "Stochastic"*self.stochastic
         self.square = square_size
         self.action_space = Discrete(4)
         self.observation_space = Continuous((self.grid_size*self.square,self.grid_size*self.square,3))
@@ -59,7 +59,7 @@ class GRID(object):
                 reward = self.board[self.x,self.y]
                 if reward == -1:
                     self.x,self.y = oldx, oldy
-                    #reward = 0
+                    reward = 0
             else:
                 RuntimeError('Error: action not recognized')
     
