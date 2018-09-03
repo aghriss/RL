@@ -8,7 +8,7 @@ from ale_python_interface import ALEInterface
 import utils.env as utils
 import numpy as np
 import collections
-from gym.envs.atari import AtariEnv
+#from gym.envs.atari import AtariEnv
 
 OPTIONS = {"IMAGES_SIZE":(80,80)}
 CROP = {"breakout":(32,10,8,8)}

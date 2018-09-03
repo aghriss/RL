@@ -11,7 +11,7 @@ from base.wrappers import EnvWrapper
 from agents.ddqn import DDQN
 
 from networks.nets import QFunction
-import gym
+#import gym
 
 import gc
 gc.enable()
