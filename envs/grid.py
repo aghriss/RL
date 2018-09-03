@@ -49,7 +49,7 @@ class GRID(object):
         reward = 0
         if self.found:
             self.found = False
-            self.reset()
+            self.reset_board()
         else:
             oldx,oldy = self.x,self.y
             if action in ACTIONS.keys():
@@ -58,12 +58,13 @@ class GRID(object):
                 self.y = self.y + a[1]
                 reward = self.board[self.x,self.y]
                 if reward == -1:
-                    self.x,self.y = oldx,oldy
+                    self.x,self.y = oldx, oldy
+                    #reward = 0
             else:
                 RuntimeError('Error: action not recognized')
     
             
-        if reward >= 1:
+        if reward == 1:
             self.found = True
         self.t = self.t + 1
         game_over = self.t > self.max_time
@@ -75,6 +76,10 @@ class GRID(object):
         """This function resets the game and returns the initial state"""
         
         self.t = 0
+        self.reset_board()
+        return self.get_screen()
+        
+    def reset_board(self):
         self.board*=0
 
         step = self.grid_size//4
@@ -83,7 +88,7 @@ class GRID(object):
         self.wall[2*step,step:step+2]=0
         self.wall[2*step,3*step:3*step+2]=0
         self.wall = np.maximum(self.wall,self.wall.T)
-        self.board[self.wall==1]=-1
+        self.board[self.wall==1] = -1
 
         if self.stochastic:
             self.x,self.y = 0,0
@@ -95,7 +100,7 @@ class GRID(object):
 
         self.add_mouse()
         
-        return self.get_screen()
+
         
     def add_mouse(self):
         

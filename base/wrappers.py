@@ -64,6 +64,8 @@ class EnvWrapper(object):
 
         if not self.current_episode%self.record_freq:
             self.save_episode(self.name+str(self.current_episode))
+            self.current_episode = self.current_episode%(20*self.record_freq)
+
         self.episode = []
 
         return self.current_state()

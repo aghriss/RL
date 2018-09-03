@@ -12,7 +12,6 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import numpy as np
-import core.utils as U
 import base.basenetwork as B
 from base.basefunction import Policy
 
@@ -20,9 +19,9 @@ class QFunction(B.BaseNetwork):
     name="QFunction"
     
     def __init__(self,env):
-        super(QFunction, self).__init__(env.observation_space.shape,env.action_space.n, owner_name=self.name)
-        self.conv = [nn.Sequential(nn.Conv2d(self.input_shape[0], 8, kernel_size=8, stride=4), nn.ReLU(),
-                                    nn.Conv2d(8, 16, kernel_size=4, stride=2), nn.Tanh(),
+        super(QFunction, self).__init__(env.observation_space.shape,env.action_space.n)
+        self.conv = [nn.Sequential(nn.Conv2d(self.input_shape[0], 8, kernel_size=8, stride=4), nn.Tanh(),
+                                    nn.Conv2d(8, 16, kernel_size=4, stride=2),
                                     nn.Conv2d(16, 32, kernel_size=3, stride=2), nn.Tanh())]
         x = B.output_shape(self.conv[0],self.input_shape)
         self.model = nn.Sequential(self.conv[0],
@@ -45,12 +44,13 @@ class TRPOPolicy(QFunction,Policy):
 class VFunction(B.BaseNetwork):
     name="VFunction"
     def __init__(self,env):
-        super(VFunction, self).__init__(env.observation_space.shape,1, owner_name=self.name)
+        super(VFunction, self).__init__(env.observation_space.shape,1)
         
-        self.conv = [nn.Sequential(nn.Conv2d(self.input_shape[0], 8, kernel_size=8, stride=4), nn.ReLU(),
-                                    nn.Conv2d(8, 16, kernel_size=4, stride=2), nn.Tanh(),
+        self.conv = [nn.Sequential(nn.Conv2d(self.input_shape[0], 8, kernel_size=8, stride=4),nn.Tanh(),
+                                    nn.Conv2d(8, 16, kernel_size=4, stride=2),
                                     nn.Conv2d(16, 32, kernel_size=3, stride=2), nn.Tanh())]
-        x = U.out_features(self.conv[0],self.input_shape)
+        x = B.output_shape(self.conv[0],self.input_shape)
+
         self.model = nn.Sequential(self.conv[0],
                                    B.Flatten(),
                                    nn.Linear(np.prod(x), 512),nn.Tanh(),
@@ -65,7 +65,7 @@ class QFunction_S(B.BaseNetwork):
     name="QFunction_S"
     
     def __init__(self, env):
-        super(QFunction_S, self).__init__(env.observation_space.shape,env.action_space.n, owner_name=self.name)
+        super(QFunction_S, self).__init__(env.observation_space.shape,env.action_space.n)
         self.conv = [nn.Sequential(nn.Conv2d(self.input_shape[0], 8, kernel_size=8, stride=4), nn.ReLU(),
                                     nn.Conv2d(8, 16, kernel_size=4, stride=2), nn.Tanh(),
                                     nn.Conv2d(16, 32, kernel_size=3, stride=2), nn.Tanh())]

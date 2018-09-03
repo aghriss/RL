@@ -12,6 +12,8 @@ import core.console as S
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 DOUBLE = False
 EPS = 1e-9
+CHECK_PATH = "./checkpoints/"
+
 if DOUBLE:
     if device.type=='cuda':
         torch.set_default_tensor_type(torch.cuda.DoubleTensor)

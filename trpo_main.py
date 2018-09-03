@@ -7,15 +7,11 @@ Created on Wed Jun 27 16:38:25 2018
 """
 
 from envs.grid import GRID
-from envs.torchwrapper import AtariWrapper, EnvWrapper
+from base.wrappers import EnvWrapper
 from agents.trpo import TRPO
-from models.atari import AtariQ, AtariValue, AtariPolicy
-from models.atari import AtariSQ, AtariSValue, AtariSPolicy
+from networks.nets import TRPOPolicy, VFunction
 import gc
-from base.agent import Agent
-from utils.console import Progbar
-import utils.math as m_utils
-import gym
+
 gc.enable()
 gc.collect()
 game = "grid"
@@ -28,8 +24,8 @@ game = "grid"
 #env.name = "Breakout-v0"
 #env0 = AtariWrapper(env, size=56, frame_count = 4, crop= "Breakout-v0")
 #env0 = AtariWrapper(env, size=64, frame_count = 3, crop= "Pong-v0")
-env0 = EnvWrapper(GRID(grid_size=16,max_time=500,stochastic = False, square_size=3),size=48,mode="rgb", frame_count = 1)
-agent = TRPO(env0, AtariPolicy, AtariValue,timesteps_per_batch=396, # what to train on
+env0 = EnvWrapper(GRID(grid_size=16,max_time=1000,stochastic = False, square_size=3),record_freq=10, size=48,mode="rgb", frame_count = 1)
+agent = TRPO(env0, TRPOPolicy,VFunction,timesteps_per_batch=512, # what to train on
         gamma=0.99, lam=0.98, # advantage estimation
         max_kl=1e-4,
         cg_iters=10,
@@ -41,4 +37,4 @@ agent = TRPO(env0, AtariPolicy, AtariValue,timesteps_per_batch=396, # what to tr
 
 agent.train()
 
-agent.play()
+#agent.play()

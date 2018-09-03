@@ -15,15 +15,16 @@ import numpy as np
 import core.utils as U
 from core.console import Progbar
 
+
+
 class BaseNetwork(nn.Module):
     """
         Base class for our Neural networks
     """
     name = "BaseNetwork"
-    def __init__(self,input_shape, output_shape,owner_name=""):
+    def __init__(self,input_shape, output_shape):
         super(BaseNetwork,self).__init__()
-         
-        self.name = self.name+".%s"%owner_name
+
         self.input_shape = input_shape
         self.output_shape = output_shape       
         self.progbar = Progbar(100)
@@ -32,6 +33,12 @@ class BaseNetwork(nn.Module):
     def forward(self,x):
         return self.model(x)
 
+    def predict(self,x):
+        x = U.torchify(x)
+        if len(x.shape) ==len(self.input_shape):
+            x.unsqueeze_(0)
+        return U.get(self.forward(x).squeeze())
+    
     def optimize(self,l,clip=False):
         self.optimizer.zero_grad()
         l.backward()
@@ -44,10 +51,10 @@ class BaseNetwork(nn.Module):
             self.progbar.__init__(len(Xtmp))
             for x,y in zip(Xtmp,Ytmp):
                 #self.optimizer.zero_grad()
-                loss = self.loss(self.net(x),y)
+                loss = self.loss(self.forward(x),y)
                 self.optimize(loss,clip)
-                new_loss = self.loss(self.net(x),y)
-                self.progbar.add(1,values=[("old",float(loss.detach().cpu().numpy())),("new",float(new_loss.detach().cpu().numpy()))])
+                new_loss = self.loss(self.forward(x).detach(),y)
+                self.progbar.add(1,values=[("old",U.get(loss)),("new",U.get(new_loss))])
 
     def step(self,grad):
         self.optimizer.zero_grad()
@@ -67,12 +74,12 @@ class BaseNetwork(nn.Module):
         self.summary()
     def load(self,fname):
         print("Loading %s.%s"%(fname,self.name))
-        dic = torch.load(fname+"."+self.name)
+        dic = torch.load(U.CHECK_PATH+fname+"."+self.name)
         super(BaseNetwork,self).load_state_dict(dic)
     def save(self,fname):
         print("Saving to %s.%s"%(fname,self.name))
         dic = super(BaseNetwork,self).state_dict()
-        torch.save(dic, "%s.%s"%(fname,self.name))
+        torch.save(dic, "%s.%s"%(U.CHECK_PATH+fname,self.name))
     def copy(self,X):
         self.flaten.set(X.flaten.get())
     def summary(self):

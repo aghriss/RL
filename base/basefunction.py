@@ -6,29 +6,27 @@ Created on Thu Jun 21 13:54:14 2018
 @author: thinkpad
 """
 import sys
+sys.path.append("../")
+
 import torch
 import torch.autograd
 import numpy as np
-sys.path.append("../")
 
 from base.basenetwork import BaseNetwork
 
-CHECK_PATH="./checkpoints/"
-
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 class Policy(BaseNetwork):
 
     name = "Policy"
     def sample(self,states):
-        logits = self.forward(states)
-        soft = np.exp(logits)
-        p = (soft/np.sum(soft))[0]
+        logits = self.predict(states)
+        #soft = np.exp(logits)
+        #p = (soft/np.sum(soft))[0]
         
-        #u = np.random.uniform(size=logits.shape)
-        #return np.argmax(logits - np.log(-np.log(u)), axis=-1)
+        u = np.random.uniform(size=logits.shape)
+        return np.argmax(logits - np.log(-np.log(u)), axis=-1)
         #print(p)
-        return np.random.choice(range(len(p)), p=p)
+        #return np.random.choice(range(len(p)), p=p)
         
     def act(self,state):
         return np.argmax(self.predict(state), axis=-1)

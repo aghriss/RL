@@ -5,17 +5,17 @@ Created on Tue Jun 12 13:52:25 2018
 
 @author: thinkpad
 """
+import sys,time
+sys.path.append("../")
 import numpy as np
 import torch
-import sys,time
-import collections
-sys.path.append("../")
-from base.agent import Agent
-from utils.console import Progbar
-import utils.math as m_utils
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-np.set_printoptions(precision=3)
+import collections
+
+from base.baseagent import BaseAgent
+from core.console import Progbar
+import core.math as m_utils
+import core.utils as U
 
 GAMMA=0.99
 LAM=0.97
@@ -26,7 +26,7 @@ CG_DAMPING=1e-2
 ENTROPY_COEF=0.0
 VF_ITER=3
 
-class TRPO(Agent):
+class TRPO(BaseAgent):
 
     name = "TRPO"
 
@@ -63,13 +63,13 @@ class TRPO(Agent):
         self.progbar = Progbar(self.timesteps_per_batch)
         
         self.path_generator = self.roller()
-        self.policy.summary()
         self.value_function.summary()
         
         self.episodes_reward=collections.deque([],50)
         self.episodes_len=collections.deque([],50)
         self.done = 0
         
+        self.functions = [self.policy, self.value_function]
     def act(self,state,train=True):
         if train:
             return self.policy.sample(state)
@@ -100,7 +100,7 @@ class TRPO(Agent):
             print(" "*15, self.done,"\n")
             self._train()
             if not self.done%self.checkpoint_freq:
-                self.save(self.name+self.env.name)
+                self.save()
             self.done = self.done+1
         self.done = 0 
     def _train(self):
@@ -112,21 +112,21 @@ class TRPO(Agent):
                 
         path = self.path_generator.__next__()
                 
-        states = torchify(path["state"]).float()
-        actions = torchify(path["action"]).long()
-        advantages = torchify(path["advantage"])
-        tdlamret = torchify(path["tdlamret"])
-        vpred = torchify(path["vf"]) # predicted value function before udpate
+        states = U.torchify(path["state"])
+        actions = U.torchify(path["action"]).long()
+        advantages = U.torchify(path["advantage"])
+        tdlamret = U.torchify(path["tdlamret"])
+        vpred = U.torchify(path["vf"]) # predicted value function before udpate
         advantages = (advantages - advantages.mean()) / advantages.std() # standardized advantage function estimate        
                         
         losses = self.calculate_losses(states, actions, advantages, tdlamret)       
         kl = losses["meankl"]
         optimization_gain = losses["gain"]
 
-        loss_grad = self.policy.flattener.flatgrad(optimization_gain,retain=True)     
-        grad_kl = self.policy.flattener.flatgrad(kl,create=True,retain=True)
+        loss_grad = self.policy.flaten.flatgrad(optimization_gain,retain=True)     
+        grad_kl = self.policy.flaten.flatgrad(kl,create=True,retain=True)
 
-        theta_before = self.policy.flattener.get()
+        theta_before = self.policy.flaten.get()
         self.log("Init param sum", theta_before.sum())
         self.log("explained variance",(vpred-tdlamret).var()/tdlamret.var())
         
@@ -153,7 +153,7 @@ class TRPO(Agent):
             start = time.time()
             for _ in range(10):
                 theta_new = theta_before + fullstep * stepsize
-                self.policy.flattener.set(theta_new)
+                self.policy.flaten.set(theta_new)
                 losses = self.calculate_losses(states,actions,advantages, tdlamret)
                 surr = losses["surrogate"] 
                 improve = surr - surrogate_before
@@ -173,7 +173,7 @@ class TRPO(Agent):
             else:
                 print("couldn't compute a good step")
                 self.log("Line Search","NOPE")
-                self.policy.flattener.set(theta_before)
+                self.policy.flaten.set(theta_before)
             elapsed = time.time()-start
             print(", Done in %.3f"%elapsed)
             self.log("Line Search in s",elapsed)
@@ -191,13 +191,11 @@ class TRPO(Agent):
         self.print()
 
     def roller(self):
-
         
         state = self.env.reset()
         ep_rews = 0
         ep_len = 0
-        while True:
-            
+        while True:            
             
             path = {s : [] for s in ["state","action","reward","terminated","vf","next_vf"]}
             self.progbar.__init__(self.timesteps_per_batch)
@@ -206,7 +204,7 @@ class TRPO(Agent):
                 path["state"].append(state)
                 # act
                 action = self.act(state)
-                vf = self.value_function.predict(state)[0][0]
+                vf = self.value_function.predict(state)
                 state, rew, done,_ = self.env.step(action)
                 path["action"].append(action)
                 path["reward"].append(rew)
@@ -231,12 +229,10 @@ class TRPO(Agent):
             self.add_vtarg_and_adv(path)            
             yield path
 
-
-
     def Fvp(self,grad_kl):
         def fisher_product(v):
             kl_v = (grad_kl * v).sum()
-            grad_grad_kl = self.policy.flattener.flatgrad(kl_v, retain=True)
+            grad_grad_kl = self.policy.flaten.flatgrad(kl_v, retain=True)
             return grad_grad_kl + v * self.cg_damping
         
         return fisher_product
@@ -253,27 +249,3 @@ class TRPO(Agent):
             delta = path["reward"][t] + self.gamma * vpred[t+1] * nonterminal - vpred[t]
             path["advantage"][t] = lastgaelam = delta + self.gamma * self.lam * nonterminal * lastgaelam
         path["tdlamret"] = (path["advantage"] + path["vf"]).reshape(-1,1)
-    
-    def play(self,name='play'):        
-        name = str(name)+self.env.name
-        state = self.env.reset(record=True)
-        
-        done = False
-        while not done:            
-            action = self.act(state,train=False)[0]
-            state, _, done, info = self.env.step(action)
-        
-        self.env.save_episode(name)
-    def save(self,name):
-        print("Saving Checkpoints %s"%self.name)
-        self.policy.save(self.name)
-        self.value_function.save(self.name)
-    def _load(self,name):
-        self.policy.load(self.name)
-        self.value_function.load(self.name)
-
-    def load(self):
-        self._load(self.name+self.env.name)
-
-def torchify(x):
-    return torch.tensor(x).to(device)

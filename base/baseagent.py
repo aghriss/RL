@@ -10,7 +10,7 @@ import collections
 import torch
 
 class BaseAgent(object):
-    
+    name ="BaseAgent"
     def __init__(self):
         
         self.history = collections.OrderedDict()
@@ -23,13 +23,13 @@ class BaseAgent(object):
         
         raise NotImplementedError
         
-    def save(self,fname):
+    def save(self):
         for f in self.functions:
-            f.save(fname)
+            f.save(self.env.name+"."+self.name)
         
-    def load(self,fname):
+    def load(self):
         for f in self.functions:
-            f.load(fname)
+            f.load(self.env.name+"."+self.name)
 
     def log(self, key,value=None):
         if isinstance(value, torch.Tensor):
@@ -47,3 +47,11 @@ class BaseAgent(object):
             if v is not None:
                 print(" : %s"%str(v[-1]))
         
+    def play(self,name='play'):        
+        name = str(name)+self.env.name+self.name
+        state = self.env.reset(record=True)
+        done = False
+        while not done:            
+            action = self.act(state,train=False)
+            state, _, done, info = self.env.step(action)
+        self.env.save_episode(name)
