@@ -14,7 +14,6 @@ from base.replaymemory import ReplayMemory
 from core.console import Progbar
 import core.utils as U
 import numpy as np
-import torch
 
 class DDQN(BaseAgent):
     """
@@ -27,7 +26,6 @@ class DDQN(BaseAgent):
         super(DDQN,self).__init__()
 
         self.env = env
-        self.name = env.name+self.name
         self.Q = self.model = deep_func(env)
         self.target_Q = deep_func(env)
         
@@ -51,20 +49,21 @@ class DDQN(BaseAgent):
         self.actions=[]
         self.path_generator = self.roller()
         self.past_rewards = collections.deque([],50)
-    
-    def act(self,state):
+        self.functions = [self.Q]
+    def act(self,state,train=True):
         
-        if np.random.rand()<self.eps:
-            return np.random.randint(self.env.action_space.n)
-        return np.argmax(U.get(self.Q(U.torchify(state).unsqueeze(0))).squeeze())
+        if train:
+            if np.random.rand()<self.eps:
+                return np.random.randint(self.env.action_space.n)
+        
+        return np.argmax(self.Q.predict(state))
     
     def train(self):
 
         self.progbar.__init__(self.memory_min)
         while(self.memory.size < self.memory_min):
             self.path_generator.__next__()
-                
-            
+
         while(self.done<self.train_steps):
 
             to_log = 0
@@ -99,14 +98,14 @@ class DDQN(BaseAgent):
                 # Optimize the model
                 self.Q.optimize(loss,clip=True)
                 
-                self.progbar.add(self.batch_size,values=[("Loss",float(loss.detach().cpu().numpy()))])
+                self.progbar.add(self.batch_size,values=[("Loss",U.get(loss))])
                 
                 to_log+=self.batch_size
 
             self.target_Q.copy(self.Q)
             new_theta = self.Q.flaten.get()
 
-            self.log("Delta Theta L1", float((new_theta-old_theta).mean().abs().detach().cpu().numpy()))
+            self.log("Delta Theta L1", U.get((new_theta-old_theta).abs().mean()))
             self.log("Av 50ep  rew",np.mean(self.past_rewards))
             self.log("Max 50ep rew",np.max(self.past_rewards))
             self.log("Min 50ep rew",np.min(self.past_rewards))
@@ -116,7 +115,7 @@ class DDQN(BaseAgent):
             self.target_Q.copy(self.Q)
             self.print()
             #self.play()
-            self.save(self.env.name)
+            self.save()
             
     def set_eps(self,x):
         self.eps = max(x,self.eps_min)
@@ -157,19 +156,3 @@ class DDQN(BaseAgent):
             self.memory.record(episode)
             if self.memory.size< self.memory_min: self.progbar.add(self.batch_size,values=[("Loss",0.0)])        
             yield True
-
-    def play(self,name='play'):
-        name = name+self.env.name+str(self.eps)
-        eps = self.eps
-        self.set_eps(0)        
-        state = self.env.reset()
-        done = False
-        while not done:    
-            action = self.act(state)    
-            state, _, done, info = self.env.step(action)
-        
-        self.env.save_episode(name)
-        self.set_eps(eps)
-
-    def load(self):
-        super(DDQN,self).load(self.name)
